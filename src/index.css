@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* LifePath Luxury Pastel Wellness Design System */
+:root {
+  /* Primary Luxury Pastels */
+  --soft-sage: #E8F5E8;
+  --soft-sage-dark: #D1E7DD;
+  --dusty-rose: #F8E8E8;
+  --dusty-rose-dark: #F3D5D5;
+  --pale-eucalyptus: #E0F7F0;
+  --pale-eucalyptus-dark: #C6F7E9;
+  --warm-ivory: #FFFEF7;
+  --warm-ivory-dark: #FEFCF3;
+  
+  /* Luxury Pastel Accents */
+  --soft-champagne: #F7E6C4;
+  --muted-lavender: #F0F0FF;
+  --gentle-peach: #FFE8D6;
+  --pale-sky: #E0F2FE;
+  --soft-mint: #ECFDF5;
+  
+  /* Sophisticated Neutrals */
+  --warm-greige: #F7F5F3;
+  --gentle-taupe: #F5F4F1;
+  --soft-charcoal: #64748B;
+  
+  /* Pastel Status Colors */
+  --success-mint: #A7F3D0;
+  --gentle-amber: #FEF3C7;
+  --blush-alert: #FECACA;
+}
+
+/* Custom Wellness Components */
+.wellness-card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md;
+}
+
+.pastel-gradient {
+  background: linear-gradient(135deg, var(--soft-sage) 0%, var(--pale-eucalyptus) 50%, var(--dusty-rose) 100%);
+}
+
+.cellular-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.metric-progress {
+  @apply relative overflow-hidden rounded-full bg-gray-100;
+}
+
+.metric-progress-fill {
+  @apply h-full rounded-full transition-all duration-1000 ease-out;
+}
+
+/* Luxury Spa Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--warm-greige);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--soft-sage-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pale-eucalyptus-dark);
+}
+
+/* Premium Form Styles */
+.wellness-input {
+  @apply w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-green-300 focus:ring-2 focus:ring-green-100 transition-all duration-200 bg-white;
+}
+
+.wellness-button {
+  @apply px-6 py-3 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.wellness-button-primary {
+  @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+}
+
+.wellness-button-secondary {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500;
+}
+
+/* Responsive Luxury Design */
+@media (max-width: 768px) {
+  .wellness-card {
+    @apply p-4;
+  }
+}
