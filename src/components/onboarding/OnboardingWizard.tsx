@@ -191,6 +191,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [loadingExistingData, setLoadingExistingData] = useState(true)
   const [autoSaving, setAutoSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [existingOnboardingId, setExistingOnboardingId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { user, profile } = useAuth()
 
@@ -228,17 +229,17 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   // Auto-save functionality - save every 30 seconds when form data changes
   useEffect(() => {
     const autoSaveInterval = setInterval(() => {
-      if (user && !loadingExistingData && !isSubmitting) {
+      if (user && !loadingExistingData && !isSubmitting && existingOnboardingId) {
         autoSaveProgress()
       }
     }, 30000) // Auto-save every 30 seconds
 
     return () => clearInterval(autoSaveInterval)
-  }, [user, loadingExistingData, isSubmitting, watchedValues])
+  }, [user, loadingExistingData, isSubmitting, watchedValues, existingOnboardingId])
 
   // Auto-save when moving between steps
   useEffect(() => {
-    if (user && !loadingExistingData && currentStep > 1) {
+    if (user && !loadingExistingData && currentStep > 1 && existingOnboardingId) {
       autoSaveProgress()
     }
   }, [currentStep])
@@ -247,83 +248,105 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     if (!user) return
 
     try {
-      // Load existing profile and onboarding data
-      const [onboardingResponse, clientResponse] = await Promise.all([
-        supabase
-          .from('client_onboarding_data')
-          .select('*')
-          .eq('client_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1),
-        supabase
-          .from('clients')
-          .select('*')
-          .eq('profile_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-      ])
+      console.log('Loading existing onboarding data for user:', user.id)
+      
+      // Load existing onboarding data - get the most recent one
+      const { data: onboardingData, error: onboardingError } = await supabase
+        .from('client_onboarding_data')
+        .select('*')
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
 
-      const onboardingData = onboardingResponse.data?.[0]
-      const clientData = clientResponse.data?.[0]
-
-      // Prepopulate form with existing data
-      const existingData: Partial<OnboardingFormData> = {
-        // From profile
-        firstName: profile.first_name || '',
-        lastName: profile.last_name || '',
-        email: profile.email || '',
-        mobile: profile.phone || '',
-        
-        // From onboarding data
-        idNumber: onboardingData?.id_number || '',
-        gender: onboardingData?.gender || undefined,
-        address1: onboardingData?.address_1 || '',
-        address2: onboardingData?.address_2 || '',
-        suburb: onboardingData?.suburb || '',
-        city: onboardingData?.city || '',
-        province: onboardingData?.province || '',
-        postalCode: onboardingData?.postal_code || '',
-        country: onboardingData?.country || 'South Africa',
-        preferredContact: onboardingData?.preferred_contact || undefined,
-        
-        maritalStatus: onboardingData?.marital_status || '',
-        maritalStatusOther: onboardingData?.marital_status_other || '',
-        employmentStatus: onboardingData?.employment_status || '',
-        employmentStatusOther: onboardingData?.employment_status_other || '',
-        currentEmployer: onboardingData?.current_employer || '',
-        occupation: onboardingData?.occupation || '',
-        academicInstitution: onboardingData?.academic_institution || '',
-        
-        // Health data - convert from arrays to form format
-        currentMedications: onboardingData?.current_medications || [],
-        chronicConditions: onboardingData?.chronic_conditions || [],
-        currentTreatments: onboardingData?.current_treatments || [],
-        previousProcedures: onboardingData?.previous_procedures || [],
-        medicalImplants: onboardingData?.medical_implants || [],
-        
-        transformationReasons: onboardingData?.transformation_reasons || [],
-        transformationReasonsOther: onboardingData?.transformation_reasons_other || '',
-        hearAboutUs: onboardingData?.hear_about_us || '',
-        hearAboutUsOther: onboardingData?.hear_about_us_other || '',
-        contactImage: onboardingData?.contact_image || '',
-        
-        treatmentCentre: onboardingData?.treatment_centre || '',
-        termsAccepted: onboardingData?.terms_accepted || false,
+      if (onboardingError && onboardingError.code !== 'PGRST116') {
+        throw onboardingError
       }
 
-      // Set form values
-      Object.entries(existingData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          setValue(key as keyof OnboardingFormData, value)
+      const latestOnboarding = onboardingData && onboardingData.length > 0 ? onboardingData[0] : null
+
+      if (latestOnboarding) {
+        console.log('Found existing onboarding data:', latestOnboarding.id)
+        setExistingOnboardingId(latestOnboarding.id)
+
+        // If already completed, redirect to dashboard
+        if (latestOnboarding.onboarding_completed) {
+          console.log('Onboarding already completed, redirecting to dashboard')
+          navigate('/dashboard')
+          return
         }
-      })
 
-      // Set last saved time if data exists
-      if (onboardingData?.last_saved_at) {
-        setLastSaved(new Date(onboardingData.last_saved_at))
+        // Prepopulate form with existing data
+        const existingData: Partial<OnboardingFormData> = {
+          // From profile
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          email: profile.email || '',
+          mobile: profile.phone || '',
+          
+          // From onboarding data
+          idNumber: latestOnboarding.id_number || '',
+          gender: latestOnboarding.gender || undefined,
+          address1: latestOnboarding.address_1 || '',
+          address2: latestOnboarding.address_2 || '',
+          suburb: latestOnboarding.suburb || '',
+          city: latestOnboarding.city || '',
+          province: latestOnboarding.province || '',
+          postalCode: latestOnboarding.postal_code || '',
+          country: latestOnboarding.country || 'South Africa',
+          preferredContact: latestOnboarding.preferred_contact || undefined,
+          
+          maritalStatus: latestOnboarding.marital_status || '',
+          maritalStatusOther: latestOnboarding.marital_status_other || '',
+          employmentStatus: latestOnboarding.employment_status || '',
+          employmentStatusOther: latestOnboarding.employment_status_other || '',
+          currentEmployer: latestOnboarding.current_employer || '',
+          occupation: latestOnboarding.occupation || '',
+          academicInstitution: latestOnboarding.academic_institution || '',
+          
+          // Health data
+          currentMedications: latestOnboarding.current_medications || [],
+          chronicConditions: latestOnboarding.chronic_conditions || [],
+          currentTreatments: latestOnboarding.current_treatments || [],
+          previousProcedures: latestOnboarding.previous_procedures || [],
+          medicalImplants: latestOnboarding.medical_implants || [],
+          
+          transformationReasons: latestOnboarding.transformation_reasons || [],
+          transformationReasonsOther: latestOnboarding.transformation_reasons_other || '',
+          hearAboutUs: latestOnboarding.hear_about_us || '',
+          hearAboutUsOther: latestOnboarding.hear_about_us_other || '',
+          contactImage: latestOnboarding.contact_image || '',
+          
+          treatmentCentre: latestOnboarding.treatment_centre || '',
+          termsAccepted: latestOnboarding.terms_accepted || false,
+        }
+
+        // Set form values
+        Object.entries(existingData).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            setValue(key as keyof OnboardingFormData, value)
+          }
+        })
+
+        // Set last saved time
+        if (latestOnboarding.last_saved_at) {
+          setLastSaved(new Date(latestOnboarding.last_saved_at))
+        }
+
+        // Set current step from progress
+        if (latestOnboarding.onboarding_progress?.current_step) {
+          setCurrentStep(latestOnboarding.onboarding_progress.current_step)
+        }
+
+        console.log('Prepopulated form with existing data')
+      } else {
+        console.log('No existing onboarding data found, will create new record')
+        // Prepopulate with profile data only
+        setValue('firstName', profile.first_name || '')
+        setValue('lastName', profile.last_name || '')
+        setValue('email', profile.email || '')
+        setValue('mobile', profile.phone || '')
       }
 
-      console.log('Prepopulated form with existing data:', existingData)
     } catch (error) {
       console.error('Error loading existing data:', error)
     } finally {
@@ -404,9 +427,27 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         last_saved_at: new Date().toISOString()
       }
 
-      const { error } = await supabase
-        .from('client_onboarding_data')
-        .upsert(progressData)
+      let error
+      if (existingOnboardingId) {
+        // Update existing record
+        const result = await supabase
+          .from('client_onboarding_data')
+          .update(progressData)
+          .eq('id', existingOnboardingId)
+        error = result.error
+      } else {
+        // Create new record
+        const result = await supabase
+          .from('client_onboarding_data')
+          .insert(progressData)
+          .select('id')
+          .single()
+        
+        error = result.error
+        if (!error && result.data) {
+          setExistingOnboardingId(result.data.id)
+        }
+      }
 
       if (error) {
         console.error('Auto-save error:', error)
@@ -473,7 +514,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
       console.log('Validation passed, proceeding with submission')
       
-      // First, save the final data with completion status
+      // Prepare the final data with completion status
       const finalData = {
         client_id: user?.id,
         
@@ -541,10 +582,21 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
       console.log('Saving final onboarding data with completion flag:', finalData)
 
-      // Save the complete onboarding data
-      const { error: saveError } = await supabase
-        .from('client_onboarding_data')
-        .upsert(finalData)
+      let saveError
+      if (existingOnboardingId) {
+        // Update existing record
+        const result = await supabase
+          .from('client_onboarding_data')
+          .update(finalData)
+          .eq('id', existingOnboardingId)
+        saveError = result.error
+      } else {
+        // Create new record (shouldn't happen at this point, but just in case)
+        const result = await supabase
+          .from('client_onboarding_data')
+          .insert(finalData)
+        saveError = result.error
+      }
 
       if (saveError) {
         console.error('Error saving final onboarding data:', saveError)
@@ -1091,7 +1143,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 </div>
                 
                 <div>
-                  <h4 className="font-semibold mb-2">Privacy Policy</h4>
+                  <h4 className="font-semibtml mb-2">Privacy Policy</h4>
                   <p>
                     Your personal information will be kept confidential and used only for providing 
                     wellness services and communicating with you about your wellness journey.
