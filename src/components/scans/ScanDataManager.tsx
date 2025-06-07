@@ -18,7 +18,8 @@ import {
   Settings,
   Cloud,
   Database,
-  Zap
+  Zap,
+  Shield
 } from 'lucide-react'
 import { Card, CardHeader, CardContent } from '../ui/Card'
 import { Button } from '../ui/Button'
@@ -91,6 +92,11 @@ export function ScanDataManager() {
   const [selectedScan, setSelectedScan] = useState<ScanData | null>(null)
   const [comparisonScans, setComparisonScans] = useState<ScanData[]>([])
   const { profile } = useAuth()
+
+  // Check if user has admin privileges
+  const isAdmin = profile?.role === 'admin'
+  const isStaff = profile?.role === 'staff'
+  const canManageScans = isAdmin || isStaff
 
   useEffect(() => {
     fetchScans()
@@ -313,13 +319,32 @@ export function ScanDataManager() {
 
   const renderOverview = () => (
     <div className="space-y-6">
+      {/* Access Restriction Notice for Clients */}
+      {profile?.role === 'client' && (
+        <Card variant="minimal" className="border-blue-200 bg-blue-50">
+          <CardContent>
+            <div className="flex items-start space-x-3">
+              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">Your Scan Data</h3>
+                <p className="text-sm text-blue-800 mt-1">
+                  You can view your personal scan results here. Scan uploads and management are handled by our wellness team.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card variant="sage" hover>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Scans</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {profile?.role === 'client' ? 'Your Scans' : 'Total Scans'}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">{stats?.total_scans || 0}</p>
               </div>
               <div className="p-3 bg-wellness-sage-100 rounded-lg">
@@ -329,41 +354,49 @@ export function ScanDataManager() {
           </CardContent>
         </Card>
 
-        <Card variant="eucalyptus" hover>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Automation Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.automated_success_rate || 0}%</p>
-              </div>
-              <div className="p-3 bg-wellness-eucalyptus-100 rounded-lg">
-                <Zap className="w-6 h-6 text-wellness-eucalyptus-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {canManageScans && (
+          <>
+            <Card variant="eucalyptus" hover>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Automation Rate</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.automated_success_rate || 0}%</p>
+                  </div>
+                  <div className="p-3 bg-wellness-eucalyptus-100 rounded-lg">
+                    <Zap className="w-6 h-6 text-wellness-eucalyptus-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card variant="rose" hover>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Recent Uploads</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.recent_uploads || 0}</p>
-                <p className="text-xs text-gray-500">Last 7 days</p>
-              </div>
-              <div className="p-3 bg-wellness-rose-100 rounded-lg">
-                <Upload className="w-6 h-6 text-wellness-rose-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <Card variant="rose" hover>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Recent Uploads</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.recent_uploads || 0}</p>
+                    <p className="text-xs text-gray-500">Last 7 days</p>
+                  </div>
+                  <div className="p-3 bg-wellness-rose-100 rounded-lg">
+                    <Upload className="w-6 h-6 text-wellness-rose-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         <Card hover>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Unique Clients</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.unique_clients || 0}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {profile?.role === 'client' ? 'Your Records' : 'Unique Clients'}
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {profile?.role === 'client' ? scans.length : stats?.unique_clients || 0}
+                </p>
               </div>
               <div className="p-3 bg-gray-100 rounded-lg">
                 <Users className="w-6 h-6 text-gray-600" />
@@ -373,59 +406,93 @@ export function ScanDataManager() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader
-          title="Quick Actions"
-          description="Common scan management tasks"
-        />
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button
-              variant="primary"
-              icon={Upload}
-              onClick={() => setViewMode('upload')}
-              className="h-20 flex-col"
-            >
-              <span className="mt-2">Upload Scans</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              icon={Cloud}
-              onClick={() => setViewMode('settings')}
-              className="h-20 flex-col"
-            >
-              <span className="mt-2">Dropbox Sync</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              icon={BarChart3}
-              onClick={handleStartComparison}
-              disabled={comparisonScans.length < 2}
-              className="h-20 flex-col"
-            >
-              <span className="mt-2">Compare Scans</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              icon={Download}
-              onClick={exportScans}
-              className="h-20 flex-col"
-            >
-              <span className="mt-2">Export Data</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Quick Actions - Admin/Staff Only */}
+      {canManageScans && (
+        <Card>
+          <CardHeader
+            title="Quick Actions"
+            description="Common scan management tasks"
+          />
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button
+                variant="primary"
+                icon={Upload}
+                onClick={() => setViewMode('upload')}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Upload Scans</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                icon={Cloud}
+                onClick={() => setViewMode('settings')}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Dropbox Sync</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                icon={BarChart3}
+                onClick={handleStartComparison}
+                disabled={comparisonScans.length < 2}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Compare Scans</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                icon={Download}
+                onClick={exportScans}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Export Data</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Client Quick Actions */}
+      {profile?.role === 'client' && (
+        <Card>
+          <CardHeader
+            title="Your Scan Data"
+            description="View and analyze your wellness scans"
+          />
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                icon={BarChart3}
+                onClick={handleStartComparison}
+                disabled={comparisonScans.length < 2}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Compare Your Scans</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                icon={Download}
+                onClick={exportScans}
+                className="h-20 flex-col"
+              >
+                <span className="mt-2">Export Your Data</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Scans */}
       <Card>
         <CardHeader
-          title="Recent Scans"
-          description="Latest scan uploads and processing status"
+          title={profile?.role === 'client' ? 'Your Scans' : 'Recent Scans'}
+          description={profile?.role === 'client' ? 'Your wellness scan history' : 'Latest scan uploads and processing status'}
           action={
             <div className="flex items-center space-x-2">
               {comparisonScans.length > 0 && (
@@ -438,7 +505,7 @@ export function ScanDataManager() {
                   Compare ({comparisonScans.length})
                 </Button>
               )}
-              {selectedScans.length > 0 && (
+              {canManageScans && selectedScans.length > 0 && (
                 <Button
                   variant="danger"
                   size="sm"
@@ -456,7 +523,7 @@ export function ScanDataManager() {
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="flex-1">
               <Input
-                placeholder="Search scans by client name, code, or filename..."
+                placeholder={profile?.role === 'client' ? 'Search your scans...' : 'Search scans by client name, code, or filename...'}
                 icon={Search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -474,16 +541,18 @@ export function ScanDataManager() {
                 <option value="failed">Failed</option>
               </select>
               
-              <select
-                className="wellness-input"
-                value={filterSource}
-                onChange={(e) => setFilterSource(e.target.value as any)}
-              >
-                <option value="all">All Sources</option>
-                <option value="manual">Manual Upload</option>
-                <option value="dropbox">Dropbox</option>
-                <option value="api">API</option>
-              </select>
+              {canManageScans && (
+                <select
+                  className="wellness-input"
+                  value={filterSource}
+                  onChange={(e) => setFilterSource(e.target.value as any)}
+                >
+                  <option value="all">All Sources</option>
+                  <option value="manual">Manual Upload</option>
+                  <option value="dropbox">Dropbox</option>
+                  <option value="api">API</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -499,10 +568,12 @@ export function ScanDataManager() {
               <p className="text-gray-600 mb-4">
                 {searchTerm || filterStatus !== 'all' || filterSource !== 'all'
                   ? 'Try adjusting your search or filter criteria.'
-                  : 'Upload your first scan to get started.'
+                  : profile?.role === 'client' 
+                    ? 'No scans have been uploaded for your account yet.'
+                    : 'Upload your first scan to get started.'
                 }
               </p>
-              {!searchTerm && filterStatus === 'all' && filterSource === 'all' && (
+              {!searchTerm && filterStatus === 'all' && filterSource === 'all' && canManageScans && (
                 <Button
                   variant="primary"
                   icon={Upload}
@@ -520,21 +591,25 @@ export function ScanDataManager() {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
                 >
                   <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedScans.includes(scan.id)}
-                      onChange={(e) => handleScanSelect(scan.id, e.target.checked)}
-                      className="rounded border-gray-300 text-wellness-sage-600 focus:ring-wellness-sage-500"
-                    />
+                    {canManageScans && (
+                      <input
+                        type="checkbox"
+                        checked={selectedScans.includes(scan.id)}
+                        onChange={(e) => handleScanSelect(scan.id, e.target.checked)}
+                        className="rounded border-gray-300 text-wellness-sage-600 focus:ring-wellness-sage-500"
+                      />
+                    )}
                     
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <h4 className="text-sm font-medium text-gray-900">
-                          {scan.client_info.first_name} {scan.client_info.last_name}
+                          {profile?.role === 'client' ? 'Your Scan' : `${scan.client_info.first_name} ${scan.client_info.last_name}`}
                         </h4>
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {scan.client_info.client_code}
-                        </span>
+                        {profile?.role !== 'client' && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {scan.client_info.client_code}
+                          </span>
+                        )}
                         <span className={`text-xs px-2 py-1 rounded ${
                           scan.processing_status === 'completed' ? 'bg-green-100 text-green-700' :
                           scan.processing_status === 'failed' ? 'bg-red-100 text-red-700' :
@@ -542,13 +617,15 @@ export function ScanDataManager() {
                         }`}>
                           {scan.processing_status}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          scan.automation_status === 'automated' ? 'bg-blue-100 text-blue-700' :
-                          scan.automation_status === 'failed' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {scan.automation_status}
-                        </span>
+                        {canManageScans && (
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            scan.automation_status === 'automated' ? 'bg-blue-100 text-blue-700' :
+                            scan.automation_status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {scan.automation_status}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                         <span>{scan.file_name}</span>
@@ -595,6 +672,27 @@ export function ScanDataManager() {
   const renderContent = () => {
     switch (viewMode) {
       case 'upload':
+        // Only allow admin/staff to access upload
+        if (!canManageScans) {
+          return (
+            <Card>
+              <CardContent>
+                <div className="text-center py-12">
+                  <Shield className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Access Restricted</h3>
+                  <p className="text-gray-600">Only administrators and staff can upload scans.</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewMode('overview')}
+                    className="mt-4"
+                  >
+                    Back to Overview
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        }
         return (
           <ScanUploader
             onUploadComplete={() => {
@@ -628,6 +726,27 @@ export function ScanDataManager() {
         )
       
       case 'settings':
+        // Only allow admin to access Dropbox settings
+        if (!isAdmin) {
+          return (
+            <Card>
+              <CardContent>
+                <div className="text-center py-12">
+                  <Shield className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Admin Access Required</h3>
+                  <p className="text-gray-600">Only administrators can configure Dropbox integration.</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewMode('overview')}
+                    className="mt-4"
+                  >
+                    Back to Overview
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        }
         return (
           <DropboxIntegration
             onClose={() => setViewMode('overview')}
@@ -644,13 +763,18 @@ export function ScanDataManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Scan Data Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {profile?.role === 'client' ? 'My Scan Data' : 'Scan Data Management'}
+          </h1>
           <p className="text-gray-600 mt-1">
-            Comprehensive scan import, processing, and analysis system
+            {profile?.role === 'client' 
+              ? 'View and analyze your wellness scan results'
+              : 'Comprehensive scan import, processing, and analysis system'
+            }
           </p>
         </div>
         
-        {viewMode === 'overview' && (
+        {viewMode === 'overview' && canManageScans && (
           <div className="flex items-center space-x-3">
             <Button
               variant="outline"
