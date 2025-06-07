@@ -321,7 +321,7 @@ export function ScanDataManager() {
     <div className="space-y-6">
       {/* Access Restriction Notice for Clients */}
       {profile?.role === 'client' && (
-        <Card variant="minimal" className="border-blue-200 bg-blue-50">
+        <Card variant="minimal\" className="border-blue-200 bg-blue-50">
           <CardContent>
             <div className="flex items-start space-x-3">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
